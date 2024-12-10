@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 // Route handling
-app.use("/users", userRoutes);
+app.use("/api", userRoutes);
 app.use("/mail", mailRoutes);
 
 const PORT = process.env.PORT;
