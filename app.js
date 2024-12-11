@@ -2,8 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const userRoutes = require("./routes/userRoutes");
-const mailRoutes = require("./routes/mailRoutes");
-
+const { syncDatabase } = require("./model/model");
 const app = express();
 
 // Use middleware first
@@ -12,7 +11,7 @@ app.use(express.json());
 
 // Route handling
 app.use("/api", userRoutes);
-app.use("/mail", mailRoutes);
+
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
