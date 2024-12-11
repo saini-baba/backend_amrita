@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const PORT = process.env.PORT;
 const MID = process.env.MID;
 const MKEY = process.env.MKEY;
-const { Form } = require("../model/model"); 
+const { Form } = require("../model/model");
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
@@ -44,7 +44,7 @@ router.post("/send", async (req, res) => {
 
 router.post("/payment/initiate", async (req, res) => {
   try {
-    const values = req.body; 
+    const values = req.body;
 
     const paytmParams = {
       MID: MID,
@@ -54,30 +54,36 @@ router.post("/payment/initiate", async (req, res) => {
       ORDER_ID: uuidv4(),
       CUST_ID: values.email,
       TXN_AMOUNT: values.amount || "100.00",
-      CALLBACK_URL: `https://http://localhost:${PORT}/api/payment/callback`,
+      CALLBACK_URL: `http://localhost:${PORT}/api/payment/callback`,
       EMAIL: values.email,
       MOBILE_NO: values.mobile,
       NAME: values.fullName,
       ADDRESS: values.address,
-      DOB: values.dob,
+      DOB: values.dateOfBirth,
       PINCODE: values.pincode,
-      PAN: values.pan || null,
+      PAN: values.pan || "Not Provided",
       CITY: values.city,
       STATE: values.state,
       COUNTRY: values.country,
     };
+    console.log(paytmParams);
 
     // Generate checksum using PaytmChecksum
     const checksum = await PaytmChecksum.generateSignature(paytmParams, MKEY);
     paytmParams.CHECKSUMHASH = checksum;
 
     // Respond with the Paytm payment URL
+    console.log(
+      `https://securegw-stage.paytm.in/theia/processTransaction?${new URLSearchParams(
+        paytmParams
+      ).toString()}`
+    );
+
     res.json({
-      payment_url: `https://securegw-stage.paytm.in/theia/processTransaction?${new URLSearchParams(
+      payment_url: `https://securegw.paytm.in/theia/processTransaction?${new URLSearchParams(
         paytmParams
       ).toString()}`,
     });
-
   } catch (error) {
     console.error("Payment initiation failed:", error);
     res
@@ -86,9 +92,15 @@ router.post("/payment/initiate", async (req, res) => {
   }
 });
 
-router.post("/api/payment/callback", async (req, res) => {
+router.post("/payment/callback", async (req, res) => {
   try {
+     console.log("Callback triggered with data:", req.body);
     const paytmChecksum = req.body.CHECKSUMHASH;
+
+    if (!paytmChecksum) {
+      return res.status(400).json({ error: "CHECKSUMHASH is missing" });
+    }
+
     delete req.body.CHECKSUMHASH;
 
     const isValidChecksum = PaytmChecksum.verifySignature(
@@ -104,7 +116,6 @@ router.post("/api/payment/callback", async (req, res) => {
     if (req.body.STATUS === "TXN_SUCCESS") {
       const paytmResponse = req.body;
 
-      // Save data to DB
       await savePaymentDetails({
         orderId: paytmResponse.ORDERID,
         amount: paytmResponse.TXNAMOUNT,
@@ -121,9 +132,7 @@ router.post("/api/payment/callback", async (req, res) => {
         country: paytmResponse.COUNTRY,
       });
 
-       return res.redirect(
-         `/donate?status=success&orderId=${req.body.ORDERID}`
-       );
+      return res.redirect(`/donate?status=success&orderId=${req.body.ORDERID}`);
     }
 
     return res.redirect(`/donate?status=failure&reason=${req.body.RESPMSG}`);
@@ -132,6 +141,7 @@ router.post("/api/payment/callback", async (req, res) => {
     res.status(500).json({ message: "Callback processing failed" });
   }
 });
+
 
 async function savePaymentDetails(paytmResponse) {
   try {
