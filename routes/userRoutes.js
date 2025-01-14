@@ -8,6 +8,7 @@ const PORT = process.env.PORT;
 const MID = process.env.MID;
 const MKEY = process.env.MKEY;
 const URL = process.env.FRONTEND_URL;
+const API = process.env.API;
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT,
@@ -75,7 +76,7 @@ router.post("/payment/initiate", async (req, res) => {
             ORDER_ID: orderId,
             CUST_ID: values.email,
             TXN_AMOUNT: values.amount || "100.00",
-            CALLBACK_URL: `http://localhost:${PORT}/api/payment/callback`,
+            CALLBACK_URL: `${API}/api/payment/callback`,
             EMAIL: values.email,
             MOBILE_NO: values.mobile,
         };
