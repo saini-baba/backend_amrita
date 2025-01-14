@@ -164,7 +164,7 @@ router.post("/payment/callback", async (req, res) => {
         return res.redirect(`${URL}/donate`);
     } catch (error) {
         console.error("Callback processing failed:", error);
-        res.status(500).json({ message: "Callback processing failed" });
+        return res.redirect(`${URL}/donate`);
     }
 });
 
