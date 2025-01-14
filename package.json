@@ -11,9 +11,12 @@
     "description": "",
     "dependencies": {
         "cors": "^2.8.5",
+        "crypto-js": "^4.2.0",
         "dotenv": "^16.4.7",
         "express": "^4.21.1",
-        "mysql2": "^3.11.5",
+        "jsonwebtoken": "^9.0.2",
+        "mysql2": "^3.12.0",
+        "node-cron": "^3.0.3",
         "nodemailer": "^6.9.16",
         "paytmchecksum": "^1.5.1",
         "sequelize": "^6.37.5",

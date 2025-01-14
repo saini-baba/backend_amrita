@@ -1,77 +1,73 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../db/db"); // Import the database connection
-
-// Define the Form model with all the fields
-const Form = sequelize.define("Form", {
-  orderId: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  amount: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  status: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  address: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  dob: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  email: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      isEmail: true, // Validate email format
+const database = require("../db/db");
+const { v4: uuidv4 } = require("uuid");
+const Records = database.db.define(
+    "records",
+    {
+        fullName: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        email: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            unique: false,
+            validate: {
+                isEmail: true, // Ensures the email is in a valid format
+            },
+        },
+        orderId: {
+            type: DataTypes.UUID, // UUID type for unique identifier
+            defaultValue: uuidv4, // Automatically generates UUID when a record is created
+            unique: true, // Ensures orderId is unique
+        },
+        phoneNo: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        address: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        dob: {
+            type: DataTypes.DATEONLY,
+            allowNull: false,
+        },
+        pincode: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        pan: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        city: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        state: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        country: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        paymentStatus: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
+        },
+        amount: {
+            type: DataTypes.DECIMAL(10, 2), // Supports monetary values with up to 2 decimal places
+            allowNull: false,
+        },
     },
-  },
-  mobile: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  pincode: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  pan: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  city: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  state: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  country: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-});
+    {
+        timestamps: true,
+    }
+);
 
-// Sync the model with the database
-async function syncDatabase() {
-  try {
-    await sequelize.sync({ force: false }); // Set force: true to recreate the table (for testing)
-    console.log("Database synced!");
-  } catch (error) {
-    console.error("Error syncing database:", error);
-  }
-}
+Records.sync();
 
-// Export model and sync function
-module.exports = {
-  Form,
-  syncDatabase,
-};
+module.exports = Records;
