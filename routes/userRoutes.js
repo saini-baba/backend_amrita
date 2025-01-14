@@ -120,6 +120,8 @@ router.post("/payment/callback", async (req, res) => {
     try {
         const paytmChecksum = req.body.CHECKSUMHASH;
         if (!paytmChecksum) {
+            console.log("1");
+
             return res.status(400).json({ error: "CHECKSUMHASH is missing" });
         }
         delete req.body.CHECKSUMHASH;
@@ -131,6 +133,7 @@ router.post("/payment/callback", async (req, res) => {
         );
 
         if (!isValidChecksum) {
+            console.log("2");
             return res.status(400).json({ error: "Checksum mismatch" });
         }
 
@@ -144,6 +147,7 @@ router.post("/payment/callback", async (req, res) => {
             );
 
             if (updatedRecord[0] === 0) {
+                console.log("3");
                 // No records were updated, meaning the orderId was not found
                 // console.error("Order ID not found:", paytmResponse.ORDERID);
                 return res.status(404).json({
@@ -156,10 +160,10 @@ router.post("/payment/callback", async (req, res) => {
                 "Payment status updated for order:",
                 paytmResponse.ORDERID
             );
-
+            console.log("4");
             return res.redirect(`${URL}/donate`);
         }
-
+        console.log(`${URL}/donate`);
         return res.redirect(`${URL}/donate`);
     } catch (error) {
         console.error("Callback processing failed:", error);
