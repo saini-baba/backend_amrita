@@ -118,51 +118,79 @@ router.post("/payment/initiate", async (req, res) => {
 });
 
 router.post("/payment/callback", async (req, res) => {
-    try {
-        const paytmChecksum = req.body.CHECKSUMHASH;
-        if (!paytmChecksum) {
-            return res.redirect(`${URL}/donate`);
-        }
-        delete req.body.CHECKSUMHASH;
-
-        const isValidChecksum = PaytmChecksum.verifySignature(
-            req.body,
-            MKEY,
-            paytmChecksum
-        );
-
-        if (!isValidChecksum) {
-            return res.redirect(`${URL}/donate`);
-        }
-
-        if (req.body.STATUS === "TXN_SUCCESS") {
-            const paytmResponse = req.body;
-
-            // Update paymentStatus in the database
-            const updatedRecord = await Records.update(
-                { paymentStatus: true }, // Set paymentStatus to true
-                { where: { orderId: paytmResponse.ORDERID } } // Match the orderId
-            );
-
-            if (updatedRecord[0] === 0) {
-                // No records were updated, meaning the orderId was not found
-                // console.error("Order ID not found:", paytmResponse.ORDERID);
-                return res.redirect(`${URL}/donate`);
-            }
-
-            // console.log(
-            //     "Payment status updated for order:",
-            //     paytmResponse.ORDERID
-            // );
-
-            return res.redirect(`${URL}/donate`);
-        }
-
-        return res.redirect(`${URL}/donate`);
-    } catch (error) {
-        // console.error("Callback processing failed:", error);
-        return res.redirect(`${URL}/donate`);
+  try {
+    const paytmChecksum = req.body.CHECKSUMHASH;
+    if (!paytmChecksum) {
+      return res.redirect(`${URL}/donate`);
     }
+    delete req.body.CHECKSUMHASH;
+
+    const isValidChecksum = PaytmChecksum.verifySignature(
+      req.body,
+      MKEY,
+      paytmChecksum
+    );
+
+    if (!isValidChecksum) {
+      return res.redirect(`${URL}/donate`);
+    }
+
+    const paytmResponse = req.body;
+    const userEmail = paytmResponse.EMAIL;
+
+    if (paytmResponse.STATUS === "TXN_SUCCESS") {
+      // Update paymentStatus in the database
+      const updatedRecord = await Records.update(
+        { paymentStatus: true }, // Set paymentStatus to true
+        { where: { orderId: paytmResponse.ORDERID } } // Match the orderId
+      );
+
+      if (updatedRecord[0] === 0) {
+        return res.redirect(`${URL}/donate`);
+      }
+
+      // Send success email to both admin and user
+      const successMailOptions = {
+        from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
+        to: `mail@amritachandercharity.org.in, ${userEmail}`,
+        subject: "Thank You for Your Generous Donation",
+        html: `<p>Dear ${paytmResponse.CUST_ID},</p>
+                    <p>We are deeply grateful for your generous donation. Your support helps us continue our mission to make a meaningful impact.</p>
+                    <p><strong>Transaction Details:</strong></p>
+                    <p>Order ID: ${paytmResponse.ORDERID}</p>
+                    <p>Amount: ₹${paytmResponse.TXNAMOUNT}</p>
+                    <p>Thank you for being a part of our community.</p>
+                    <p>Warm regards,</p>
+                    <p>The Amrita Chander Charity Team</p>`,
+      };
+
+      await transporter.sendMail(successMailOptions);
+
+      return res.redirect(`${URL}/donate`);
+    } else {
+      // Send failure email to the user
+      const failureMailOptions = {
+        from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: "Donation Attempt Unsuccessful",
+        html: `<p>Dear ${paytmResponse.CUST_ID},</p>
+                    <p>We regret to inform you that your recent donation attempt was unsuccessful. We truly appreciate your intention to support our cause.</p>
+                    <p><strong>Transaction Details:</strong></p>
+                    <p>Order ID: ${paytmResponse.ORDERID}</p>
+                    <p>If you would like to try again, please visit our <a href="${URL}/donate">donation page</a>. If you have any questions or need assistance, feel free to contact us.</p>
+                    <p>Thank you for your kindness and support.</p>
+                    <p>Warm regards,</p>
+                    <p>The Amrita Chander Charity Team</p>`,
+      };
+
+      await transporter.sendMail(failureMailOptions);
+
+      return res.redirect(`${URL}/donate`);
+    }
+  } catch (error) {
+    return res.redirect(`${URL}/donate`);
+  }
 });
+
 
 module.exports = router;
