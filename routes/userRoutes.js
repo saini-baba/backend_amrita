@@ -118,43 +118,47 @@ router.post("/payment/initiate", async (req, res) => {
 });
 
 router.post("/payment/callback", async (req, res) => {
-  try {
-    const paytmChecksum = req.body.CHECKSUMHASH;
-    if (!paytmChecksum) {
-      return res.redirect(`${URL}/donate`);
-    }
-    delete req.body.CHECKSUMHASH;
+    try {
+        const paytmChecksum = req.body.CHECKSUMHASH;
+        if (!paytmChecksum) {
+            return res.redirect(`${URL}/donate`);
+        }
+        delete req.body.CHECKSUMHASH;
 
-    const isValidChecksum = PaytmChecksum.verifySignature(
-      req.body,
-      MKEY,
-      paytmChecksum
-    );
+        const isValidChecksum = PaytmChecksum.verifySignature(
+            req.body,
+            MKEY,
+            paytmChecksum
+        );
 
-    if (!isValidChecksum) {
-      return res.redirect(`${URL}/donate`);
-    }
+        if (!isValidChecksum) {
+            return res.redirect(`${URL}/donate`);
+        }
 
-    const paytmResponse = req.body;
-    const userEmail = paytmResponse.EMAIL;
+        const paytmResponse = req.body;
+        const record = await Records.findOne({
+            where: { orderId: paytmResponse.ORDERID },
+        });
+        if (paytmResponse.STATUS === "TXN_SUCCESS") {
+            // Update paymentStatus in the database
+            const updatedRecord = await Records.update(
+                { paymentStatus: true },
+                { where: { orderId: paytmResponse.ORDERID } }
+            );
 
-    if (paytmResponse.STATUS === "TXN_SUCCESS") {
-      // Update paymentStatus in the database
-      const updatedRecord = await Records.update(
-        { paymentStatus: true },
-        { where: { orderId: paytmResponse.ORDERID } }
-      );
+            if (updatedRecord[0] === 0) {
+                return res.redirect(`${URL}/donate`);
+            }
 
-      if (updatedRecord[0] === 0) {
-        return res.redirect(`${URL}/donate`);
-      }
+            // console.log("Paytm response:", paytmResponse);
+            // console.log(process.env.SMTP_USER);
 
-      // Send success email to user
-      const userMailOptions = {
-        from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
-        to: userEmail,
-        subject: "Thank You for Your Generous Donation",
-        html: `<p>Dear ${paytmResponse.CUST_ID},</p>
+            // Send success email to user
+            const userMailOptions = {
+                from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
+                to: record.email,
+                subject: "Thank You for Your Generous Donation",
+                html: `<p>Dear ${record.fullName},</p>
                     <p>We are deeply grateful for your generous donation. Your support helps us continue our mission to make a meaningful impact.</p>
                     <p><strong>Transaction Details:</strong></p>
                     <p>Order ID: ${paytmResponse.ORDERID}</p>
@@ -162,55 +166,55 @@ router.post("/payment/callback", async (req, res) => {
                     <p>Thank you for being a part of our community.</p>
                     <p>Warm regards,</p>
                     <p>The Amrita Chander Charity Team</p>`,
-      };
+            };
 
-      await transporter.sendMail(userMailOptions);
+            // console.log("Preparing to send success email...");
+            await transporter.sendMail(userMailOptions);
+            // console.log("Success email sent.");
 
-      // Send donation received email to trust mail
-      const trustMailOptions = {
-        from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
-        to: "mail@amritachandercharity.org.in",
-        subject: "Donation Received Notification",
-        html: `<p>Dear Trust Team,</p>
+            // Send donation received email to trust mail
+            const trustMailOptions = {
+                from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
+                to: "mail@amritachandercharity.org.in",
+                subject: "Donation Received Notification",
+                html: `<p>Dear Trust Team,</p>
                     <p>We have received a new donation.</p>
                     <p><strong>Donor Details:</strong></p>
-                    <p>Name: ${paytmResponse.CUST_ID}</p>
-                    <p>Email: ${userEmail}</p>
+                    <p>Name: ${record.fullName}</p>
+                    <p>Email: ${record.email}</p>
                     <p>Order ID: ${paytmResponse.ORDERID}</p>
                     <p>Amount: ₹${paytmResponse.TXNAMOUNT}</p>
                     <p>Thank you for your continued support in managing these contributions.</p>
                     <p>Warm regards,</p>
                     <p>The Amrita Chander Charity Team</p>`,
-      };
+            };
 
-      await transporter.sendMail(trustMailOptions);
+            await transporter.sendMail(trustMailOptions);
 
-      return res.redirect(`${URL}/donate`);
-    } else {
-      // Send failure email to the user
-      const failureMailOptions = {
-        from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
-        to: userEmail,
-        subject: "Donation Attempt Unsuccessful",
-        html: `<p>Dear ${paytmResponse.CUST_ID},</p>
-                    <p>We regret to inform you that your recent donation attempt was unsuccessful. We truly appreciate your intention to support our cause.</p>
-                    <p><strong>Transaction Details:</strong></p>
-                    <p>Order ID: ${paytmResponse.ORDERID}</p>
-                    <p>If you would like to try again, please visit our <a href="${URL}/donate">donation page</a>. If you have any questions or need assistance, feel free to contact us.</p>
-                    <p>Thank you for your kindness and support.</p>
-                    <p>Warm regards,</p>
-                    <p>The Amrita Chander Charity Team</p>`,
-      };
+            return res.redirect(`${URL}/donate`);
+        } else {
+            // Send failure email to the user
+            const failureMailOptions = {
+                from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
+                to: record.email,
+                subject: "Donation Attempt Unsuccessful",
+                html: `<p>Dear ${record.fullName},</p>
+                        <p>We regret to inform you that your recent donation attempt was unsuccessful. We truly appreciate your intention to support our cause.</p>
+                        <p><strong>Transaction Details:</strong></p>
+                        <p>Order ID: ${paytmResponse.ORDERID}</p>
+                        <p>If you would like to try again, please visit our <a href="${URL}/donate">donation page</a>. If you have any questions or need assistance, feel free to contact us.</p>
+                        <p>Thank you for your kindness and support.</p>
+                        <p>Warm regards,</p>
+                        <p>The Amrita Chander Charity Team</p>`,
+            };
 
-      await transporter.sendMail(failureMailOptions);
+            await transporter.sendMail(failureMailOptions);
 
-      return res.redirect(`${URL}/donate`);
+            return res.redirect(`${URL}/donate`);
+        }
+    } catch (error) {
+        return res.redirect(`${URL}/donate`);
     }
-  } catch (error) {
-    return res.redirect(`${URL}/donate`);
-  }
 });
-
-
 
 module.exports = router;
