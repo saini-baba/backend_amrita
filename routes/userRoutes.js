@@ -141,18 +141,18 @@ router.post("/payment/callback", async (req, res) => {
     if (paytmResponse.STATUS === "TXN_SUCCESS") {
       // Update paymentStatus in the database
       const updatedRecord = await Records.update(
-        { paymentStatus: true }, // Set paymentStatus to true
-        { where: { orderId: paytmResponse.ORDERID } } // Match the orderId
+        { paymentStatus: true },
+        { where: { orderId: paytmResponse.ORDERID } }
       );
 
       if (updatedRecord[0] === 0) {
         return res.redirect(`${URL}/donate`);
       }
 
-      // Send success email to both admin and user
-      const successMailOptions = {
+      // Send success email to user
+      const userMailOptions = {
         from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
-        to: `mail@amritachandercharity.org.in, ${userEmail}`,
+        to: userEmail,
         subject: "Thank You for Your Generous Donation",
         html: `<p>Dear ${paytmResponse.CUST_ID},</p>
                     <p>We are deeply grateful for your generous donation. Your support helps us continue our mission to make a meaningful impact.</p>
@@ -164,7 +164,26 @@ router.post("/payment/callback", async (req, res) => {
                     <p>The Amrita Chander Charity Team</p>`,
       };
 
-      await transporter.sendMail(successMailOptions);
+      await transporter.sendMail(userMailOptions);
+
+      // Send donation received email to trust mail
+      const trustMailOptions = {
+        from: `"Amrita Chander Charity" <${process.env.SMTP_USER}>`,
+        to: "mail@amritachandercharity.org.in",
+        subject: "Donation Received Notification",
+        html: `<p>Dear Trust Team,</p>
+                    <p>We have received a new donation.</p>
+                    <p><strong>Donor Details:</strong></p>
+                    <p>Name: ${paytmResponse.CUST_ID}</p>
+                    <p>Email: ${userEmail}</p>
+                    <p>Order ID: ${paytmResponse.ORDERID}</p>
+                    <p>Amount: ₹${paytmResponse.TXNAMOUNT}</p>
+                    <p>Thank you for your continued support in managing these contributions.</p>
+                    <p>Warm regards,</p>
+                    <p>The Amrita Chander Charity Team</p>`,
+      };
+
+      await transporter.sendMail(trustMailOptions);
 
       return res.redirect(`${URL}/donate`);
     } else {
@@ -191,6 +210,7 @@ router.post("/payment/callback", async (req, res) => {
     return res.redirect(`${URL}/donate`);
   }
 });
+
 
 
 module.exports = router;
