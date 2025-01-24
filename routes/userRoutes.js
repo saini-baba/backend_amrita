@@ -121,7 +121,7 @@ router.post("/payment/callback", async (req, res) => {
     try {
         const paytmChecksum = req.body.CHECKSUMHASH;
         if (!paytmChecksum) {
-            return res.redirect(`${URL}/donate`);
+            return res.redirect(`${URL}/donation-failed`);
         }
         delete req.body.CHECKSUMHASH;
 
@@ -132,7 +132,7 @@ router.post("/payment/callback", async (req, res) => {
         );
 
         if (!isValidChecksum) {
-            return res.redirect(`${URL}/donate`);
+            return res.redirect(`${URL}/donation-failed`);
         }
 
         const paytmResponse = req.body;
@@ -147,7 +147,7 @@ router.post("/payment/callback", async (req, res) => {
             );
 
             if (updatedRecord[0] === 0) {
-                return res.redirect(`${URL}/donate`);
+                return res.redirect(`${URL}/donation-failed`);
             }
 
             // console.log("Paytm response:", paytmResponse);
@@ -191,7 +191,7 @@ router.post("/payment/callback", async (req, res) => {
 
             await transporter.sendMail(trustMailOptions);
 
-            return res.redirect(`${URL}/donate`);
+            return res.redirect(`${URL}/donation-successful`);
         } else {
             // Send failure email to the user
             const failureMailOptions = {
@@ -210,10 +210,10 @@ router.post("/payment/callback", async (req, res) => {
 
             await transporter.sendMail(failureMailOptions);
 
-            return res.redirect(`${URL}/donate`);
+            return res.redirect(`${URL}/donation-failed`);
         }
     } catch (error) {
-        return res.redirect(`${URL}/donate`);
+        return res.redirect(`${URL}/donation-failed`);
     }
 });
 
